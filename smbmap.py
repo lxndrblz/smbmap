@@ -969,10 +969,23 @@ class SMBMap():
             for item in range(len(shareList)):
                 shares.append( (shareList[item]['shi1_netname'][:-1], shareList[item]['shi1_remark'][:-1]) )
             return shares
+        
+        except BrokenPipeError as e:
+            # Check for a broken pipe error
+            Print('[!] Caught broken pipe error when trying to connect to shares.')
+            # Redirect remaining output to dev/null
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stdout.fileno())
+            # Print everything to STDOUT currently within the buffer
+            sys.stdout.flush()
+            # Kill loader which rejoins the processes
+            self.kill_loader()
+
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+
             sys.stdout.flush()
             self.kill_loader()
             #sys.exit()
