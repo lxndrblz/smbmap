@@ -50,6 +50,7 @@ PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 VERBOSE = False
 USE_TERMCOLOR=True
 SEND_UPDATE_MSG=True
+MAX_RETRIES = 10
 
 banner = r"""
     ________  ___      ___  _______   ___      ___       __         _______
@@ -962,33 +963,40 @@ class SMBMap():
         except Exception as e:
             print('[!] Bummer: ', e)
 
-    def get_shares(self, host):
-        try:
-            shareList = self.smbconn[host].listShares()
-            shares = []
-            for item in range(len(shareList)):
-                shares.append( (shareList[item]['shi1_netname'][:-1], shareList[item]['shi1_remark'][:-1]) )
+    def get_shares(self, host, retries=1):
+        # Reset list of shares
+        shares = []
+        if retries <= MAX_RETRIES:
+            try:
+                shareList = self.smbconn[host].listShares()
+                
+                for item in range(len(shareList)):
+                    shares.append( (shareList[item]['shi1_netname'][:-1], shareList[item]['shi1_remark'][:-1]) )
+                return shares
+            
+            except BrokenPipeError as e:
+                # Check for a broken pipe error
+                Print('[!] Caught broken pipe error when trying to connect to shares.')
+                # Redirect remaining output to dev/null
+                devnull = os.open(os.devnull, os.O_WRONLY)
+                os.dup2(devnull, sys.stdout.fileno())
+                # Print everything to STDOUT currently within the buffer
+                sys.stdout.flush()
+                # Kill loader which rejoins the processes
+                self.kill_loader()
+                # Retry strategy
+                return self.get_shares(host,retries=retries+1)
+
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+
+                sys.stdout.flush()
+                self.kill_loader()
+                #sys.exit()
+        else:
             return shares
-        
-        except BrokenPipeError as e:
-            # Check for a broken pipe error
-            Print('[!] Caught broken pipe error when trying to connect to shares.')
-            # Redirect remaining output to dev/null
-            devnull = os.open(os.devnull, os.O_WRONLY)
-            os.dup2(devnull, sys.stdout.fileno())
-            # Print everything to STDOUT currently within the buffer
-            sys.stdout.flush()
-            # Kill loader which rejoins the processes
-            self.kill_loader()
-
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
-
-            sys.stdout.flush()
-            self.kill_loader()
-            #sys.exit()
 
     def pathify(self, path):
         root = ''
