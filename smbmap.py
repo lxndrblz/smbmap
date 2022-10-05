@@ -963,6 +963,18 @@ class SMBMap():
         except Exception as e:
             print('[!] Bummer: ', e)
 
+
+    # Adapted from https://github.com/Porchetta-Industries/CrackMapExec/pull/560/files
+    def get_error_string(exception):
+        if hasattr(exception, 'getErrorString'):
+            es =  exception.getErrorString()
+            if type(es) is tuple:
+                return es[0]
+            else:
+                return es
+        else:
+            return str(exception)
+
     def get_shares(self, host, retries=1):
         # Reset list of shares
         shares = []
@@ -977,6 +989,8 @@ class SMBMap():
             except BrokenPipeError as e:
                 # Check for a broken pipe error
                 Print('[!] Caught broken pipe error when trying to connect to shares.')
+                error = self.get_error_string(e)
+                Print(error)
                 # Redirect remaining output to dev/null
                 devnull = os.open(os.devnull, os.O_WRONLY)
                 os.dup2(devnull, sys.stdout.fileno())
@@ -1149,9 +1163,13 @@ class SMBMap():
 
     def get_version(self, host):
         domain = self.smbconn[host].getServerDomain()
+        # Check for SMB Signing
+        signing = self.smbconn[host]._SMBConnection._Connection['RequireSigning']
+
         if not domain:
             domain = self.smbconn[host].getServerName()
         print("[+] {}:{} is running {} (name:{}) (domain:{})".format(host, 445, self.smbconn[host].getServerOS(), self.smbconn[host].getServerName(), domain))
+        print("[+] {}".format(signing))
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
