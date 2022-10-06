@@ -1163,13 +1163,10 @@ class SMBMap():
 
     def get_version(self, host):
         domain = self.smbconn[host].getServerDomain()
-        # Check for SMB Signing
-        signing = self.smbconn[host]._SMBConnection._Connection['RequireSigning']
-
+        
         if not domain:
             domain = self.smbconn[host].getServerName()
-        print("[+] {}:{} is running {} (name:{}) (domain:{})".format(host, 445, self.smbconn[host].getServerOS(), self.smbconn[host].getServerName(), domain))
-        print("[+] {}".format(signing))
+        print("[+] {}:{} is running {} (name:{}) (domain:{}) SMB Signing: {}".format(host, 445, self.smbconn[host].getServerOS(), self.smbconn[host].getServerName(), domain, self.smbconn[host].isSigningRequired()))
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
